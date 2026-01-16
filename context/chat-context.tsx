@@ -65,6 +65,12 @@ function saveChatsToStorage(chats: Chat[]) {
   }
 }
 
+// Local audio helper
+const playSound = (type: "sent" | "received") => {
+  // In a real app, we'd play an actual audio file
+  console.log(`[Sound] Playing ${type} message sound`)
+}
+
 function saveMessagesToStorage(messages: Message[]) {
   if (typeof window === "undefined") return
   try {
@@ -103,12 +109,20 @@ interface ChatContextType {
 
   // Actions
   selectChat: (chatId: string) => void
-  sendMessage: (content: string, options?: { isVoiceMessage?: boolean; voiceDuration?: number }) => void
+  sendMessage: (
+    content: string,
+    options?: {
+      isVoiceMessage?: boolean
+      voiceDuration?: number
+      fileUrl?: string
+      fileType?: "image" | "file" | "video"
+      fileName?: string
+    },
+  ) => void
   createGroupChat: (name: string, participantIds: string[]) => void
   createDirectChat: (userId: string) => void
   removeUserFromChat: (chatId: string, userId: string) => void
   deleteChat: (chatId: string) => void
-  editChat: (chatId: string, updates: Partial<Pick<Chat, "name" | "avatar" | "participants">>) => void
   markAsRead: (chatId: string) => void
   setTyping: (chatId: string, isTyping: boolean) => void
 
@@ -121,6 +135,7 @@ interface ChatContextType {
   editMessage: (messageId: string, newContent: string) => void
   deleteMessage: (messageId: string) => void
   forwardMessage: (messageId: string, targetChatId: string) => void
+  updateChat: (chatId: string, updates: Partial<Chat>) => void
 
   // Helpers
   getChatName: (chat: Chat) => string
@@ -227,8 +242,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
    * Send a new message in the selected chat
    */
   const sendMessage = useCallback(
-    (content: string, options?: { isVoiceMessage?: boolean; voiceDuration?: number }) => {
-      if (!selectedChat || !user || (!content.trim() && !options?.isVoiceMessage)) return
+    (
+      content: string,
+      options?: {
+        isVoiceMessage?: boolean
+        voiceDuration?: number
+        fileUrl?: string
+        fileType?: "image" | "file" | "video"
+        fileName?: string
+      },
+    ) => {
+      if (!selectedChat || !user || (!content.trim() && !options?.isVoiceMessage && !options?.fileUrl)) return
 
       const newMessage: Message = {
         id: `msg-${Date.now()}-${user.id}`,
@@ -239,7 +263,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         status: "sent",
         isVoiceMessage: options?.isVoiceMessage,
         voiceDuration: options?.voiceDuration,
+        fileUrl: options?.fileUrl,
+        fileType: options?.fileType,
+        fileName: options?.fileName,
       }
+
+      playSound("sent")
 
       setMessages((prev) => {
         const updated = [...prev, newMessage]
@@ -571,9 +600,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [selectedChat],
   )
 
-  /** Edit chat metadata (name, avatar, participants) */
-  const editChat = useCallback(
-    (chatId: string, updates: Partial<Pick<Chat, "name" | "avatar" | "participants">>) => {
+  /** Update chat metadata (name, avatar, wallpaper, etc.) */
+  const updateChat = useCallback(
+    (chatId: string, updates: Partial<Chat>) => {
       setChats((prev) => {
         const updated = prev.map((c) => (c.id === chatId ? { ...c, ...updates } : c))
         saveChatsToStorage(updated)
@@ -672,7 +701,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     createDirectChat,
     removeUserFromChat,
     deleteChat,
-    editChat,
+    updateChat,
     markAsRead,
     setTyping,
     addReaction,

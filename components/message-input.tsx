@@ -110,9 +110,32 @@ export function MessageInput() {
         </div>
 
         {/* Attachment button */}
-        <button className="p-2.5 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95" title="Attach file">
-          <Paperclip className="w-5 h-5 text-[var(--color-primary)]" />
-        </button>
+        <div className="relative">
+          <input
+            type="file"
+            className="hidden"
+            id="file-upload"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file && selectedChat) {
+                const isImage = file.type.startsWith("image/")
+                const fakeUrl = URL.createObjectURL(file)
+                sendMessage("", {
+                  fileUrl: fakeUrl,
+                  fileType: isImage ? "image" : "file",
+                  fileName: file.name
+                })
+              }
+            }}
+          />
+          <button
+            onClick={() => document.getElementById("file-upload")?.click()}
+            className="p-2.5 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95"
+            title="Attach file"
+          >
+            <Paperclip className="w-5 h-5 text-[var(--color-primary)]" />
+          </button>
+        </div>
 
         {/* Input field */}
         <div className="flex-1">

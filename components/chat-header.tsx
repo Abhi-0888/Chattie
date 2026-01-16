@@ -7,9 +7,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface ChatHeaderProps {
   onBackClick?: () => void
+  onInfoClick?: () => void
 }
 
-export function ChatHeader({ onBackClick }: ChatHeaderProps) {
+export function ChatHeader({ onBackClick, onInfoClick }: ChatHeaderProps) {
   const { selectedChat, getChatName, getChatAvatar, getOtherParticipant, typingUsers, deleteChat } = useChat()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
@@ -55,9 +56,8 @@ export function ChatHeader({ onBackClick }: ChatHeaderProps) {
           />
           {selectedChat.type === "direct" && otherUser && (
             <span
-              className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                otherUser.status === "online" ? "bg-[var(--color-online)]" : "bg-[var(--color-offline)]"
-              } shadow-md`}
+              className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${otherUser.status === "online" ? "bg-[var(--color-online)]" : "bg-[var(--color-offline)]"
+                } shadow-md`}
             />
           )}
           {selectedChat.type === "group" && (
@@ -100,6 +100,13 @@ export function ChatHeader({ onBackClick }: ChatHeaderProps) {
         </button>
         <button className="p-2 rounded-lg hover:bg-white/20 transition-all duration-200 active:scale-95" title="Voice call">
           <Phone className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onInfoClick}
+          className="p-2 rounded-lg hover:bg-white/20 transition-all duration-200 active:scale-95"
+          title="Chat info"
+        >
+          <MoreVertical className="w-5 h-5" />
         </button>
         <button
           onClick={() => setShowDeleteDialog(true)}

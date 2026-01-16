@@ -16,6 +16,15 @@ export interface Message {
   forwarded?: boolean
   isVoiceMessage?: boolean
   voiceDuration?: number // in seconds for voice messages
+  fileUrl?: string
+  fileType?: "image" | "file" | "video"
+  fileName?: string
+  linkPreview?: {
+    url: string
+    title: string
+    description?: string
+    image?: string
+  }
 }
 
 export interface Chat {
@@ -27,6 +36,8 @@ export interface Chat {
   lastMessage?: Message
   unreadCount: number
   createdAt: Date
+  wallpaper?: string
+  themeColor?: string
 }
 
 // Generate timestamps relative to now

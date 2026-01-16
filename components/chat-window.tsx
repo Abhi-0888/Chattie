@@ -4,6 +4,8 @@ import { useChat } from "@/context/chat-context"
 import { ChatHeader } from "./chat-header"
 import { MessageList } from "./message-list"
 import { MessageInput } from "./message-input"
+import { ChatDetails } from "./chat-details"
+import { useState } from "react"
 
 interface ChatWindowProps {
   onBackClick?: () => void
@@ -11,6 +13,7 @@ interface ChatWindowProps {
 
 export function ChatWindow({ onBackClick }: ChatWindowProps) {
   const { selectedChat } = useChat()
+  const [showDetails, setShowDetails] = useState(false)
 
   if (!selectedChat) {
     return (
@@ -18,7 +21,7 @@ export function ChatWindow({ onBackClick }: ChatWindowProps) {
         {/* Animated gradient orbs */}
         <div className="absolute top-10 left-10 w-72 h-72 bg-gradient-to-r from-[#6366f1]/20 to-transparent rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-10 right-10 w-72 h-72 bg-gradient-to-r from-[#ec4899]/20 to-transparent rounded-full blur-3xl animate-pulse" />
-        
+
         {/* Content */}
         <div className="relative z-10">
           <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#6366f1] to-[#ec4899] flex items-center justify-center mb-8 shadow-2xl transform hover:scale-110 transition-transform duration-300">
@@ -44,10 +47,13 @@ export function ChatWindow({ onBackClick }: ChatWindowProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <ChatHeader onBackClick={onBackClick} />
-      <MessageList />
-      <MessageInput />
+    <div className="flex-1 flex h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full min-w-0">
+        <ChatHeader onBackClick={onBackClick} onInfoClick={() => setShowDetails(!showDetails)} />
+        <MessageList />
+        <MessageInput />
+      </div>
+      <ChatDetails isOpen={showDetails} onClose={() => setShowDetails(false)} />
     </div>
   )
 }

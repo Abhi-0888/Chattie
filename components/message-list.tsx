@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { Check, CheckCheck, Pin, Share2 } from "lucide-react"
+import { Check, CheckCheck, Pin, Share2, File, Download, Image as ImageIcon } from "lucide-react"
 import { useChat } from "@/context/chat-context"
 import { useAuth } from "@/context/auth-context"
 import { dummyUsers } from "@/utils/dummy-users"
@@ -16,6 +16,10 @@ import { format, isToday, isYesterday } from "date-fns"
 import { MessageReactions } from "./message-reactions"
 import { MessageContextMenu } from "./message-context-menu"
 import { PinnedMessages } from "./pinned-messages"
+import { LinkPreview } from "./link-preview"
+
+// Regex to detect URLs
+const URL_REGEX = /(https?:\/\/[^\s]+)/g
 
 export function MessageList() {
   const { selectedChat, messages, editMessage } = useChat()
@@ -84,7 +88,15 @@ export function MessageList() {
   if (!selectedChat) return null
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 chat-background">
+    <div
+      className="flex-1 overflow-y-auto custom-scrollbar p-4 chat-background relative"
+      style={{
+        backgroundImage: selectedChat.wallpaper ? `url(${selectedChat.wallpaper})` : undefined,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      {selectedChat.wallpaper && <div className="absolute inset-0 bg-black/20 pointer-events-none" />}
       {chatMessages.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full text-center">
           <div className="w-20 h-20 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center mb-4">
@@ -192,12 +204,62 @@ export function MessageList() {
                           </div>
                         </div>
                       ) : (
-                        <p className={`text-sm leading-relaxed break-words ${isSent ? "text-white" : "text-[var(--color-foreground)]"}`}>
-                          {message.content}
-                          {message.editedAt && (
-                            <span className="ml-1 text-[10px] opacity-50 font-normal">(edited)</span>
+                        <div className="space-y-2">
+                          {/* Media Content */}
+                          {message.fileUrl && (
+                            <div className="mb-2">
+                              {message.fileType === "image" ? (
+                                <div className="relative group">
+                                  <img
+                                    src={message.fileUrl}
+                                    alt={message.fileName || "Image"}
+                                    className="max-w-full rounded-lg shadow-sm border border-white/10 transition-transform duration-200 group-hover:scale-[1.02]"
+                                  />
+                                  <a
+                                    href={message.fileUrl}
+                                    download={message.fileName}
+                                    className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                                  >
+                                    <Download className="w-8 h-8 text-white" />
+                                  </a>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-3 p-3 bg-black/5 rounded-lg border border-white/10 hover:bg-black/10 transition-colors">
+                                  <div className="w-10 h-10 rounded-lg bg-[var(--color-primary)]/20 flex items-center justify-center">
+                                    <File className="w-5 h-5 text-[var(--color-primary)]" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{message.fileName || "File"}</p>
+                                    <p className="text-[10px] opacity-70">Generic attachment</p>
+                                  </div>
+                                  <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           )}
-                        </p>
+
+                          {/* Text Content */}
+                          {message.content && (
+                            <>
+                              <p className={`text-sm leading-relaxed break-words ${isSent ? "text-white" : "text-[var(--color-foreground)]"}`}>
+                                {message.content}
+                                {message.editedAt && (
+                                  <span className="ml-1 text-[10px] opacity-50 font-normal">(edited)</span>
+                                )}
+                              </p>
+
+                              {/* Link Previews */}
+                              {(() => {
+                                const urls = message.content.match(URL_REGEX)
+                                return urls?.map((url, i) => (
+                                  <LinkPreview key={i} url={url} />
+                                ))
+                              })()}
+                            </>
+                          )}
+                        </div>
                       )}
 
                       {/* Timestamp and status */}
