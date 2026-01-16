@@ -103,7 +103,7 @@ interface ChatContextType {
 
   // Actions
   selectChat: (chatId: string) => void
-  sendMessage: (content: string) => void
+  sendMessage: (content: string, options?: { isVoiceMessage?: boolean; voiceDuration?: number }) => void
   createGroupChat: (name: string, participantIds: string[]) => void
   createDirectChat: (userId: string) => void
   removeUserFromChat: (chatId: string, userId: string) => void
@@ -111,6 +111,16 @@ interface ChatContextType {
   editChat: (chatId: string, updates: Partial<Pick<Chat, "name" | "avatar" | "participants">>) => void
   markAsRead: (chatId: string) => void
   setTyping: (chatId: string, isTyping: boolean) => void
+
+  // New enhanced actions
+  addReaction: (messageId: string, emoji: string) => void
+  removeReaction: (messageId: string, emoji: string) => void
+  togglePin: (messageId: string) => void
+  getPinnedMessages: (chatId: string) => Message[]
+  searchMessages: (query: string) => Message[]
+  editMessage: (messageId: string, newContent: string) => void
+  deleteMessage: (messageId: string) => void
+  forwardMessage: (messageId: string, targetChatId: string) => void
 
   // Helpers
   getChatName: (chat: Chat) => string
@@ -217,8 +227,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
    * Send a new message in the selected chat
    */
   const sendMessage = useCallback(
-    (content: string) => {
-      if (!selectedChat || !user || !content.trim()) return
+    (content: string, options?: { isVoiceMessage?: boolean; voiceDuration?: number }) => {
+      if (!selectedChat || !user || (!content.trim() && !options?.isVoiceMessage)) return
 
       const newMessage: Message = {
         id: `msg-${Date.now()}-${user.id}`,
@@ -227,6 +237,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         content: content.trim(),
         timestamp: new Date(),
         status: "sent",
+        isVoiceMessage: options?.isVoiceMessage,
+        voiceDuration: options?.voiceDuration,
       }
 
       setMessages((prev) => {
@@ -254,7 +266,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // Simulate message delivery status update
       setTimeout(() => {
         setMessages((prev) => {
-          const updated = prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: "delivered" } : msg))
+          const updated = prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: "delivered" as "sent" | "delivered" | "read" } : msg))
           saveMessagesToStorage(updated)
           return updated
         })
@@ -263,13 +275,171 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // Simulate read status
       setTimeout(() => {
         setMessages((prev) => {
-          const updated = prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: "read" } : msg))
+          const updated = prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: "read" as "sent" | "delivered" | "read" } : msg))
           saveMessagesToStorage(updated)
           return updated
         })
       }, 2000)
     },
     [selectedChat, user],
+  )
+
+  /**
+   * Add a reaction to a message
+   */
+  const addReaction = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!user) return
+      setMessages((prev) => {
+        const updated = prev.map((msg) => {
+          if (msg.id === messageId) {
+            const reactions = msg.reactions || []
+            const reactionIndex = reactions.findIndex((r) => r.emoji === emoji)
+
+            if (reactionIndex > -1) {
+              const reaction = reactions[reactionIndex]
+              if (!reaction.userIds.includes(user.id)) {
+                const updatedReactions = [...reactions]
+                updatedReactions[reactionIndex] = {
+                  ...reaction,
+                  userIds: [...reaction.userIds, user.id],
+                }
+                return { ...msg, reactions: updatedReactions }
+              }
+            } else {
+              return {
+                ...msg,
+                reactions: [...reactions, { emoji, userIds: [user.id] }],
+              }
+            }
+          }
+          return msg
+        })
+        saveMessagesToStorage(updated)
+        return updated
+      })
+    },
+    [user],
+  )
+
+  /**
+   * Remove a reaction from a message
+   */
+  const removeReaction = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!user) return
+      setMessages((prev) => {
+        const updated = prev.map((msg) => {
+          if (msg.id === messageId && msg.reactions) {
+            const updatedReactions = msg.reactions
+              .map((r) => {
+                if (r.emoji === emoji) {
+                  return { ...r, userIds: r.userIds.filter((id) => id !== user.id) }
+                }
+                return r
+              })
+              .filter((r) => r.userIds.length > 0)
+            return { ...msg, reactions: updatedReactions }
+          }
+          return msg
+        })
+        saveMessagesToStorage(updated)
+        return updated
+      })
+    },
+    [user],
+  )
+
+  /**
+   * Toggle pin status of a message
+   */
+  const togglePin = useCallback((messageId: string) => {
+    setMessages((prev) => {
+      const updated = prev.map((msg) => (msg.id === messageId ? { ...msg, isPinned: !msg.isPinned } : msg))
+      saveMessagesToStorage(updated)
+      return updated
+    })
+  }, [])
+
+  /**
+   * Get all pinned messages for a chat
+   */
+  const getPinnedMessages = useCallback(
+    (chatId: string) => {
+      return messages.filter((msg) => msg.chatId === chatId && msg.isPinned)
+    },
+    [messages],
+  )
+
+  /**
+   * Search messages across all chats
+   */
+  const searchMessages = useCallback(
+    (query: string) => {
+      if (!query.trim()) return []
+      return messages.filter((msg) => msg.content.toLowerCase().includes(query.toLowerCase()))
+    },
+    [messages],
+  )
+
+  /**
+   * Edit a message's content
+   */
+  const editMessage = useCallback((messageId: string, newContent: string) => {
+    setMessages((prev) => {
+      const updated = prev.map((msg) =>
+        msg.id === messageId ? { ...msg, content: newContent, editedAt: new Date() } : msg,
+      )
+      saveMessagesToStorage(updated)
+      return updated
+    })
+  }, [])
+
+  /**
+   * Delete a single message
+   */
+  const deleteMessage = useCallback((messageId: string) => {
+    setMessages((prev) => {
+      const updated = prev.filter((msg) => msg.id !== messageId)
+      saveMessagesToStorage(updated)
+      return updated
+    })
+  }, [])
+
+  /**
+   * Forward a message to another chat
+   */
+  const forwardMessage = useCallback(
+    (messageId: string, targetChatId: string) => {
+      const messageToForward = messages.find((m) => m.id === messageId)
+      if (!messageToForward || !user) return
+
+      const newMessage: Message = {
+        ...messageToForward,
+        id: `msg-fwd-${Date.now()}-${user.id}`,
+        chatId: targetChatId,
+        senderId: user.id,
+        timestamp: new Date(),
+        status: "sent",
+        forwarded: true,
+      }
+
+      setMessages((prev) => {
+        const updated = [...prev, newMessage]
+        saveMessagesToStorage(updated)
+        return updated
+      })
+
+      // Update the target chat's last message
+      setChats((prev) => {
+        const updated = prev.map((chat) =>
+          chat.id === targetChatId ? { ...chat, lastMessage: newMessage } : chat,
+        )
+        saveChatsToStorage(updated)
+        return updated
+      })
+    },
+    [messages, user],
   )
 
   /**
@@ -500,8 +670,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     sendMessage,
     createGroupChat,
     createDirectChat,
+    removeUserFromChat,
+    deleteChat,
+    editChat,
     markAsRead,
     setTyping,
+    addReaction,
+    removeReaction,
+    togglePin,
+    getPinnedMessages,
+    searchMessages,
+    editMessage,
+    deleteMessage,
+    forwardMessage,
     getChatName,
     getChatAvatar,
     getOtherParticipant,

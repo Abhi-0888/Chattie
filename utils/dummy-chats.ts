@@ -1,3 +1,8 @@
+export interface Reaction {
+  emoji: string
+  userIds: string[]
+}
+
 export interface Message {
   id: string
   chatId: string
@@ -5,6 +10,12 @@ export interface Message {
   content: string
   timestamp: Date
   status: "sent" | "delivered" | "read"
+  reactions?: Reaction[]
+  isPinned?: boolean
+  editedAt?: Date
+  forwarded?: boolean
+  isVoiceMessage?: boolean
+  voiceDuration?: number // in seconds for voice messages
 }
 
 export interface Chat {

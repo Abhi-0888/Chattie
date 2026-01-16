@@ -12,6 +12,8 @@ import { useState, useRef, useEffect } from "react"
 import { Send, Smile, Paperclip, Mic } from "lucide-react"
 import { useChat } from "@/context/chat-context"
 import { useSocket } from "@/context/socket-context"
+import { EmojiPicker } from "./emoji-picker"
+import { VoiceRecorder } from "./voice-recorder"
 
 export function MessageInput() {
   const { selectedChat, sendMessage, setTyping } = useChat()
@@ -19,13 +21,17 @@ export function MessageInput() {
 
   const [message, setMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Focus input when chat changes
+  // Focus input when chat changes or when closing emoji picker/voice recorder
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [selectedChat?.id])
+    if (!showEmojiPicker && !showVoiceRecorder) {
+      inputRef.current?.focus()
+    }
+  }, [selectedChat?.id, showEmojiPicker, showVoiceRecorder])
 
   // Handle typing indicator
   useEffect(() => {
@@ -83,9 +89,25 @@ export function MessageInput() {
     <div className="p-4 bg-[var(--color-card)] border-t border-[var(--color-border)]">
       <div className="flex items-center gap-3">
         {/* Emoji button */}
-        <button className="p-2.5 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95" title="Emoji">
-          <Smile className="w-5 h-5 text-[var(--color-primary)]" />
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`p-2.5 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95 ${showEmojiPicker ? "bg-[var(--color-secondary)]" : ""}`}
+            title="Emoji"
+          >
+            <Smile className="w-5 h-5 text-[var(--color-primary)]" />
+          </button>
+
+          {showEmojiPicker && (
+            <EmojiPicker
+              onEmojiSelect={(emoji) => {
+                setMessage(prev => prev + emoji)
+                setShowEmojiPicker(false)
+              }}
+              onClose={() => setShowEmojiPicker(false)}
+            />
+          )}
+        </div>
 
         {/* Attachment button */}
         <button className="p-2.5 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95" title="Attach file">
@@ -114,11 +136,25 @@ export function MessageInput() {
             <Send className="w-5 h-5 text-white" />
           </button>
         ) : (
-          <button className="p-3 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95" title="Voice message">
+          <button
+            onClick={() => setShowVoiceRecorder(true)}
+            className="p-3 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95"
+            title="Voice message"
+          >
             <Mic className="w-5 h-5 text-[var(--color-primary)]" />
           </button>
         )}
       </div>
+
+      {showVoiceRecorder && (
+        <VoiceRecorder
+          onSend={(duration) => {
+            sendMessage("", { isVoiceMessage: true, voiceDuration: duration })
+            setShowVoiceRecorder(false)
+          }}
+          onCancel={() => setShowVoiceRecorder(false)}
+        />
+      )}
     </div>
   )
 }
