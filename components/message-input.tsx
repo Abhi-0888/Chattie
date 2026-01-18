@@ -10,6 +10,7 @@
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Send, Smile, Paperclip, Mic } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useChat } from "@/context/chat-context"
 import { useSocket } from "@/context/socket-context"
 import { EmojiPicker } from "./emoji-picker"
@@ -83,34 +84,46 @@ export function MessageInput() {
     }
   }
 
+  const hasContent = message.trim().length > 0
+
   if (!selectedChat) return null
 
   return (
-    <div className="p-4 bg-[var(--color-card)] border-t border-[var(--color-border)]">
-      <div className="flex items-center gap-3">
+    <div className="p-4 bg-[var(--color-background)] border-t border-[var(--color-border)] relative">
+      <div className="flex items-end gap-2 sm:gap-3 bg-[var(--color-card)] p-2 rounded-2xl shadow-xl border border-[var(--color-border)] transition-all focus-within:ring-4 focus-within:ring-[var(--color-primary)]/5 glass-effect">
         {/* Emoji button */}
-        <div className="relative">
-          <button
+        <div className="relative mb-0.5">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={`p-2.5 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95 ${showEmojiPicker ? "bg-[var(--color-secondary)]" : ""}`}
+            className={`p-2.5 rounded-xl hover:bg-[var(--color-primary)]/10 transition-all duration-200 ${showEmojiPicker ? "bg-[var(--color-primary)]/20 shadow-inner" : ""}`}
             title="Emoji"
           >
             <Smile className="w-5 h-5 text-[var(--color-primary)]" />
-          </button>
+          </motion.button>
 
-          {showEmojiPicker && (
-            <EmojiPicker
-              onEmojiSelect={(emoji) => {
-                setMessage(prev => prev + emoji)
-                setShowEmojiPicker(false)
-              }}
-              onClose={() => setShowEmojiPicker(false)}
-            />
-          )}
+          <AnimatePresence>
+            {showEmojiPicker && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              >
+                <EmojiPicker
+                  onEmojiSelect={(emoji) => {
+                    setMessage(prev => prev + emoji)
+                    setShowEmojiPicker(false)
+                  }}
+                  onClose={() => setShowEmojiPicker(false)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Attachment button */}
-        <div className="relative">
+        <div className="relative mb-0.5">
           <input
             type="file"
             className="hidden"
@@ -128,56 +141,85 @@ export function MessageInput() {
               }
             }}
           />
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => document.getElementById("file-upload")?.click()}
-            className="p-2.5 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95"
+            className="p-2.5 rounded-xl hover:bg-[var(--color-primary)]/10 transition-all duration-200"
             title="Attach file"
           >
             <Paperclip className="w-5 h-5 text-[var(--color-primary)]" />
-          </button>
+          </motion.button>
         </div>
 
         {/* Input field */}
         <div className="flex-1">
-          <input
-            ref={inputRef}
-            type="text"
+          <textarea
+            ref={inputRef as any}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyPress as any}
             placeholder="Type a message..."
-            className="modern-input w-full px-4 py-3 bg-[var(--color-input)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] focus:ring-2 focus:ring-opacity-20"
+            rows={1}
+            className="w-full px-2 py-2.5 bg-transparent text-[var(--color-foreground)] placeholder:text-[var(--color-muted)] border-none focus:ring-0 resize-none min-h-[44px] max-h-[120px] scrollbar-hide text-sm sm:text-base leading-relaxed"
+            style={{ height: 'auto' }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = `${target.scrollHeight}px`;
+            }}
           />
         </div>
 
         {/* Send/Voice button */}
-        {message.trim() ? (
-          <button
-            onClick={handleSend}
-            className="p-3 rounded-lg bg-gradient-to-r from-[#6366f1] to-[#ec4899] hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200"
-          >
-            <Send className="w-5 h-5 text-white" />
-          </button>
-        ) : (
-          <button
-            onClick={() => setShowVoiceRecorder(true)}
-            className="p-3 rounded-lg hover:bg-[var(--color-secondary)] transition-all duration-200 active:scale-95"
-            title="Voice message"
-          >
-            <Mic className="w-5 h-5 text-[var(--color-primary)]" />
-          </button>
-        )}
+        <AnimatePresence mode="wait">
+          {hasContent ? (
+            <motion.button
+              key="send"
+              initial={{ scale: 0.5, opacity: 0, rotate: -45 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              exit={{ scale: 0.5, opacity: 0, rotate: 45 }}
+              onClick={handleSend}
+              className="mb-0.5 p-3 rounded-xl mesh-gradient text-white shadow-lg hover:shadow-[var(--color-primary)]/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center"
+            >
+              <Send className="w-5 h-5 ml-0.5" />
+            </motion.button>
+          ) : (
+            <motion.button
+              key="mic"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              onClick={() => setShowVoiceRecorder(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="mb-0.5 p-3 rounded-xl hover:bg-[var(--color-primary)]/10 transition-all duration-200 group"
+              title="Voice message"
+            >
+              <Mic className="w-5 h-5 text-[var(--color-primary)] group-hover:scale-110 transition-transform" />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
-      {showVoiceRecorder && (
-        <VoiceRecorder
-          onSend={(duration) => {
-            sendMessage("", { isVoiceMessage: true, voiceDuration: duration })
-            setShowVoiceRecorder(false)
-          }}
-          onCancel={() => setShowVoiceRecorder(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showVoiceRecorder && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute inset-0 bg-[var(--color-background)] z-10"
+          >
+            <VoiceRecorder
+              onSend={(duration) => {
+                sendMessage("", { isVoiceMessage: true, voiceDuration: duration })
+                setShowVoiceRecorder(false)
+              }}
+              onCancel={() => setShowVoiceRecorder(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 "use client"
 import { ArrowLeft, Phone, Video, MoreVertical, Users, Trash2 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useChat } from "@/context/chat-context"
 import { dummyUsers } from "@/utils/dummy-users"
 import { useState } from "react"
@@ -33,30 +34,35 @@ export function ChatHeader({ onBackClick, onInfoClick }: ChatHeaderProps) {
 
     const typingNames = chatTypingUsers.map((id) => dummyUsers.find((u) => u.id === id)?.name || "Someone").join(", ")
 
-    return `${typingNames} is typing...`
+    return typingNames.length > 30 ? "Multiple people are typing" : `${typingNames} is typing`
   }
 
   return (
-    <div className="header-gradient flex items-center justify-between px-4 py-4 text-white shadow-lg">
-      <div className="flex items-center gap-3">
+    <div className="mesh-gradient flex items-center justify-between px-4 py-3 text-white shadow-lg relative overflow-hidden">
+      <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]" />
+      <div className="relative z-10 flex items-center gap-3">
         {/* Back button for mobile */}
         <button
           onClick={onBackClick}
-          className="p-2 rounded-lg hover:bg-white/20 transition-all duration-200 md:hidden active:scale-95"
+          className="p-2 rounded-xl hover:bg-white/20 transition-all duration-200 md:hidden active:scale-95 bg-white/10"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
         {/* Avatar */}
-        <div className="relative">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="relative"
+        >
           <img
             src={getChatAvatar(selectedChat) || "/default-avatar.png"}
             alt={getChatName(selectedChat)}
-            className="w-12 h-12 rounded-lg object-cover border-2 border-white/30 shadow-md"
+            className="w-11 h-11 rounded-xl object-cover border-2 border-white/30 shadow-md"
           />
           {selectedChat.type === "direct" && otherUser && (
             <span
-              className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${otherUser.status === "online" ? "bg-[var(--color-online)]" : "bg-[var(--color-offline)]"
+              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${otherUser.status === "online" ? "bg-[var(--color-online)]" : "bg-[var(--color-offline)]"
                 } shadow-md`}
             />
           )}
@@ -65,55 +71,92 @@ export function ChatHeader({ onBackClick, onInfoClick }: ChatHeaderProps) {
               <Users className="w-3 h-3 text-white" />
             </span>
           )}
-        </div>
+        </motion.div>
 
         {/* Info */}
-        <div>
-          <h2 className="font-bold text-white">{getChatName(selectedChat)}</h2>
-          <p className="text-sm text-white/80 flex items-center gap-1">
-            {isTyping ? (
-              <span className="flex items-center gap-1">
-                {getTypingText()}
-                <span className="flex gap-0.5 ml-1">
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full bg-white" />
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full bg-white" />
-                  <span className="typing-dot w-1.5 h-1.5 rounded-full bg-white" />
-                </span>
-              </span>
-            ) : selectedChat.type === "direct" ? (
-              otherUser?.status === "online" ? (
-                "Online"
+        <motion.div
+          initial={{ x: -10, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+        >
+          <h2 className="font-bold text-white text-base leading-tight truncate max-w-[150px] sm:max-w-[250px]">
+            {getChatName(selectedChat)}
+          </h2>
+          <div className="text-[11px] text-white/80 flex items-center gap-1.5 h-4">
+            <AnimatePresence mode="wait">
+              {isTyping ? (
+                <motion.span
+                  key="typing"
+                  initial={{ y: 5, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -5, opacity: 0 }}
+                  className="flex items-center gap-1"
+                >
+                  <span className="font-medium">{getTypingText()}</span>
+                  <span className="flex gap-0.5">
+                    <motion.span
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
+                      className="w-1 h-1 rounded-full bg-white"
+                    />
+                    <motion.span
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                      className="w-1 h-1 rounded-full bg-white"
+                    />
+                    <motion.span
+                      animate={{ opacity: [0.4, 1, 0.4] }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                      className="w-1 h-1 rounded-full bg-white"
+                    />
+                  </span>
+                </motion.span>
               ) : (
-                `Last seen ${otherUser?.lastSeen || "recently"}`
-              )
-            ) : (
-              <span className="truncate max-w-[200px]">{getParticipantNames()}</span>
-            )}
-          </p>
-        </div>
+                <motion.span
+                  key="status"
+                  initial={{ y: 5, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -5, opacity: 0 }}
+                >
+                  {selectedChat.type === "direct" ? (
+                    otherUser?.status === "online" ? (
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                        Online
+                      </span>
+                    ) : (
+                      `Last seen ${otherUser?.lastSeen || "recently"}`
+                    )
+                  ) : (
+                    <span className="truncate max-w-[200px] block">{getParticipantNames()}</span>
+                  )}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
-        <button className="p-2 rounded-lg hover:bg-white/20 transition-all duration-200 active:scale-95" title="Video call">
-          <Video className="w-5 h-5" />
+      <div className="relative z-10 flex items-center gap-1">
+        <button className="p-2 rounded-xl hover:bg-white/20 transition-all duration-200 active:scale-95 bg-white/5" title="Video call">
+          <Video className="w-4.5 h-4.5" />
         </button>
-        <button className="p-2 rounded-lg hover:bg-white/20 transition-all duration-200 active:scale-95" title="Voice call">
-          <Phone className="w-5 h-5" />
+        <button className="p-2 rounded-xl hover:bg-white/20 transition-all duration-200 active:scale-95 bg-white/5" title="Voice call">
+          <Phone className="w-4.5 h-4.5" />
         </button>
         <button
           onClick={onInfoClick}
-          className="p-2 rounded-lg hover:bg-white/20 transition-all duration-200 active:scale-95"
+          className="p-2 rounded-xl hover:bg-white/20 transition-all duration-200 active:scale-95 bg-white/5"
           title="Chat info"
         >
-          <MoreVertical className="w-5 h-5" />
+          <MoreVertical className="w-4.5 h-4.5" />
         </button>
         <button
           onClick={() => setShowDeleteDialog(true)}
-          className="p-2 rounded-lg hover:bg-red-500/30 transition-all duration-200 active:scale-95"
+          className="p-2 rounded-xl hover:bg-red-500/30 transition-all duration-200 active:scale-95 ml-1 bg-red-500/10"
           title="Delete chat"
         >
-          <Trash2 className="w-5 h-5" />
+          <Trash2 className="w-4.5 h-4.5 text-red-200" />
         </button>
       </div>
 
