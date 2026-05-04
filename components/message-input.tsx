@@ -9,7 +9,7 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { Send, Smile, Paperclip, Mic } from "lucide-react"
+import { Send, Smile, Paperclip, Mic, X, CornerUpLeft } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useChat } from "@/context/chat-context"
 import { useSocket } from "@/context/socket-context"
@@ -17,14 +17,14 @@ import { EmojiPicker } from "./emoji-picker"
 import { VoiceRecorder } from "./voice-recorder"
 
 export function MessageInput() {
-  const { selectedChat, sendMessage, setTyping } = useChat()
+  const { selectedChat, sendMessage, setTyping, replyingTo, setReplyingTo } = useChat()
   const { emit } = useSocket()
 
   const [message, setMessage] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Focus input when chat changes or when closing emoji picker/voice recorder
@@ -74,6 +74,16 @@ export function MessageInput() {
     setTyping(selectedChat.id, false)
     emit("typing:stop", { chatId: selectedChat.id })
 
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+    }
+
+    inputRef.current?.focus()
+  }
+
+  const handleCancelReply = () => {
+    setReplyingTo(null)
     inputRef.current?.focus()
   }
 
@@ -90,6 +100,35 @@ export function MessageInput() {
 
   return (
     <div className="p-4 bg-[var(--color-background)] border-t border-[var(--color-border)] relative">
+      {/* Reply Preview */}
+      <AnimatePresence>
+        {replyingTo && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: 10, height: 0 }}
+            className="mb-3 overflow-hidden"
+          >
+            <div className="flex items-start gap-2 px-3 py-2 bg-[var(--color-primary)]/5 border-l-2 border-[var(--color-primary)] rounded-r-lg">
+              <CornerUpLeft className="w-4 h-4 text-[var(--color-primary)] mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-[var(--color-primary)]">
+                  Replying to {replyingTo.replyTo?.senderName || 'message'}
+                </p>
+                <p className="text-sm text-[var(--color-muted-foreground)] truncate">
+                  {replyingTo.content || (replyingTo.fileType === 'image' ? 'Image' : replyingTo.fileName || 'Voice message')}
+                </p>
+              </div>
+              <button
+                onClick={handleCancelReply}
+                className="p-1 hover:bg-[var(--color-primary)]/10 rounded transition-colors"
+              >
+                <X className="w-4 h-4 text-[var(--color-muted)]" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex items-end gap-2 sm:gap-3 bg-[var(--color-card)] p-2 rounded-2xl shadow-xl border border-[var(--color-border)] transition-all focus-within:ring-4 focus-within:ring-[var(--color-primary)]/5 glass-effect">
         {/* Emoji button */}
         <div className="relative mb-0.5">

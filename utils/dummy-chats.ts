@@ -25,6 +25,13 @@ export interface Message {
     description?: string
     image?: string
   }
+  replyToId?: string
+  replyTo?: {
+    id: string
+    content: string
+    senderId: string
+    senderName: string
+  }
 }
 
 export interface Chat {

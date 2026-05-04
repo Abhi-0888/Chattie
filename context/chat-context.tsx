@@ -106,6 +106,7 @@ interface ChatContextType {
   messages: Message[]
   selectedChat: Chat | null
   typingUsers: { [chatId: string]: string[] }
+  replyingTo: Message | null
 
   // Actions
   selectChat: (chatId: string) => void
@@ -117,6 +118,7 @@ interface ChatContextType {
       fileUrl?: string
       fileType?: "image" | "file" | "video"
       fileName?: string
+      replyToId?: string
     },
   ) => void
   createGroupChat: (name: string, participantIds: string[]) => void
@@ -124,7 +126,9 @@ interface ChatContextType {
   removeUserFromChat: (chatId: string, userId: string) => void
   deleteChat: (chatId: string) => void
   markAsRead: (chatId: string) => void
+  markAllAsRead: () => void
   setTyping: (chatId: string, isTyping: boolean) => void
+  setReplyingTo: (message: Message | null) => void
 
   // New enhanced actions
   addReaction: (messageId: string, emoji: string) => void
@@ -136,6 +140,7 @@ interface ChatContextType {
   deleteMessage: (messageId: string) => void
   forwardMessage: (messageId: string, targetChatId: string) => void
   updateChat: (chatId: string, updates: Partial<Chat>) => void
+  exportChat: (chatId: string) => void
 
   // Helpers
   getChatName: (chat: Chat) => string
@@ -153,6 +158,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   const [typingUsers, setTypingUsers] = useState<{ [chatId: string]: string[] }>({})
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null)
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [isInitialized, setIsInitialized] = useState(false)
 
@@ -250,9 +256,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         fileUrl?: string
         fileType?: "image" | "file" | "video"
         fileName?: string
+        replyToId?: string
       },
     ) => {
       if (!selectedChat || !user || (!content.trim() && !options?.isVoiceMessage && !options?.fileUrl)) return
+
+      // Handle reply information
+      let replyToInfo = undefined
+      if (replyingTo) {
+        const replySender = allUsers.find((u) => u.id === replyingTo.senderId)
+        replyToInfo = {
+          id: replyingTo.id,
+          content: replyingTo.content.slice(0, 100), // Limit preview length
+          senderId: replyingTo.senderId,
+          senderName: replySender?.name || "Unknown",
+        }
+      }
 
       const newMessage: Message = {
         id: `msg-${Date.now()}-${user.id}`,
@@ -266,7 +285,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         fileUrl: options?.fileUrl,
         fileType: options?.fileType,
         fileName: options?.fileName,
+        replyToId: replyingTo?.id,
+        replyTo: replyToInfo,
       }
+
+      // Clear replyingTo after sending
+      setReplyingTo(null)
 
       playSound("sent")
 
@@ -310,7 +334,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         })
       }, 2000)
     },
-    [selectedChat, user],
+    [selectedChat, user, replyingTo, allUsers],
   )
 
   /**
@@ -544,6 +568,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   /**
+   * Mark all chats as read
+   */
+  const markAllAsRead = useCallback(() => {
+    setChats((prev) => {
+      const updated = prev.map((chat) => ({ ...chat, unreadCount: 0 }))
+      saveChatsToStorage(updated)
+      return updated
+    })
+  }, [])
+
+  /**
    * Remove a user from a chat. If after removal the chat has fewer than
    * 2 participants, the chat will be deleted.
    */
@@ -615,6 +650,57 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [selectedChat],
+  )
+
+  /**
+   * Export chat history as JSON file
+   */
+  const exportChat = useCallback(
+    (chatId: string) => {
+      const chat = chats.find((c) => c.id === chatId)
+      if (!chat) return
+
+      const chatMessages = messages.filter((m) => m.chatId === chatId)
+      // Get chat name without depending on getChatName callback
+      const chatName = chat.type === "group"
+        ? chat.name || "Group Chat"
+        : allUsers.find((u) => u.id === chat.participants.find((p) => p !== user?.id))?.name || "Unknown User"
+
+      const exportData = {
+        chat: {
+          id: chat.id,
+          name: chatName,
+          type: chat.type,
+          createdAt: chat.createdAt,
+        },
+        messages: chatMessages.map((m) => ({
+          id: m.id,
+          content: m.content,
+          senderId: m.senderId,
+          timestamp: m.timestamp,
+          status: m.status,
+          reactions: m.reactions,
+          isVoiceMessage: m.isVoiceMessage,
+          voiceDuration: m.voiceDuration,
+          fileName: m.fileName,
+          replyTo: m.replyTo,
+          forwarded: m.forwarded,
+          editedAt: m.editedAt,
+        })),
+        exportedAt: new Date().toISOString(),
+      }
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `chat-export-${chatName.replace(/[^a-z0-9]/gi, "_").toLowerCase()}-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    },
+    [chats, messages, allUsers, user?.id],
   )
 
   /**
@@ -695,6 +781,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     messages,
     selectedChat,
     typingUsers,
+    replyingTo,
     selectChat,
     sendMessage,
     createGroupChat,
@@ -703,7 +790,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     deleteChat,
     updateChat,
     markAsRead,
+    markAllAsRead,
     setTyping,
+    setReplyingTo,
     addReaction,
     removeReaction,
     togglePin,
@@ -712,6 +801,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     editMessage,
     deleteMessage,
     forwardMessage,
+    exportChat,
     getChatName,
     getChatAvatar,
     getOtherParticipant,

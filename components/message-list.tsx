@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { Check, CheckCheck, Pin, Share2, File, Download, Image as ImageIcon, ArrowDown } from "lucide-react"
+import { Check, CheckCheck, Pin, Share2, File, Download, Image as ImageIcon, ArrowDown, CornerUpLeft } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useChat } from "@/context/chat-context"
 import { useAuth } from "@/context/auth-context"
@@ -23,7 +23,7 @@ import { LinkPreview } from "./link-preview"
 const URL_REGEX = /(https?:\/\/[^\s]+)/g
 
 export function MessageList() {
-  const { selectedChat, messages, editMessage } = useChat()
+  const { selectedChat, messages, editMessage, setReplyingTo } = useChat()
   const { user } = useAuth()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -213,6 +213,21 @@ export function MessageList() {
                                   </div>
                                 )}
 
+                                {/* Reply Preview */}
+                                {message.replyTo && (
+                                  <div className={`flex items-start gap-1.5 mb-2 p-2 rounded-lg ${isSent ? "bg-white/10" : "bg-[var(--color-primary)]/10"}`}>
+                                    <CornerUpLeft className={`w-3 h-3 mt-0.5 flex-shrink-0 ${isSent ? "text-white/70" : "text-[var(--color-primary)]"}`} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-[10px] font-semibold ${isSent ? "text-white/70" : "text-[var(--color-primary)]"}`}>
+                                        {message.replyTo.senderName}
+                                      </p>
+                                      <p className={`text-xs truncate ${isSent ? "text-white/80" : "text-[var(--color-muted-foreground)]"}`}>
+                                        {message.replyTo.content || 'Media'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+
                                 {/* Forwarded Indicator */}
                                 {message.forwarded && (
                                   <div className="flex items-center gap-1 mb-1 opacity-60">
@@ -359,6 +374,12 @@ export function MessageList() {
             }}
             onForward={() => {
               alert("Forwarding logic would open a chat selector here")
+            }}
+            onReply={() => {
+              const msg = messages.find(m => m.id === contextMenu.messageId)
+              if (msg) {
+                setReplyingTo(msg)
+              }
             }}
           />
         )}

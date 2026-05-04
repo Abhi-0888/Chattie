@@ -1,6 +1,6 @@
 "use client"
 
-import { Edit2, Trash2, Pin, ArrowRight, Copy, Smile } from "lucide-react"
+import { Edit2, Trash2, Pin, ArrowRight, Copy, Smile, CornerUpLeft } from "lucide-react"
 import { useChat } from "@/context/chat-context"
 import { useState } from "react"
 import { EmojiPicker } from "./emoji-picker"
@@ -12,6 +12,7 @@ interface MessageContextMenuProps {
     onClose: () => void
     onEdit: () => void
     onForward: () => void
+    onReply: () => void
     position: { x: number; y: number }
 }
 
@@ -22,6 +23,7 @@ export function MessageContextMenu({
     onClose,
     onEdit,
     onForward,
+    onReply,
     position
 }) {
     const { togglePin, deleteMessage, addReaction } = useChat()
@@ -103,6 +105,14 @@ export function MessageContextMenu({
                 >
                     <Pin className={`w-4 h-4 ${isPinned ? "fill-[var(--color-primary)] text-[var(--color-primary)]" : ""}`} />
                     <span>{isPinned ? "Unpin Message" : "Pin Message"}</span>
+                </button>
+
+                <button
+                    onClick={() => { onReply(); onClose(); }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] transition-colors"
+                >
+                    <CornerUpLeft className="w-4 h-4" />
+                    <span>Reply</span>
                 </button>
 
                 <button

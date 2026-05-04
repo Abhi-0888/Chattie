@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react"
-import { Search, Plus, LogOut, Users, MessageSquare, UserPlus } from "lucide-react"
+import { Search, Plus, LogOut, Users, MessageSquare, UserPlus, Keyboard, CheckCheck, Download } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/context/auth-context"
 import { useChat } from "@/context/chat-context"
@@ -18,6 +18,7 @@ import { formatDistanceToNow } from "date-fns"
 import { UserList } from "./user-list"
 import { FriendRequests } from "./friend-requests"
 import { GroupCreationModal } from "./group-creation-modal"
+import { KeyboardShortcutsModal } from "./keyboard-shortcuts-modal"
 
 interface SidebarProps {
   onMobileClose?: () => void
@@ -25,13 +26,17 @@ interface SidebarProps {
 
 export function Sidebar({ onMobileClose }: SidebarProps) {
   const { user, logout } = useAuth()
-  const { chats, selectedChat, selectChat, getChatName, getChatAvatar, getOtherParticipant } = useChat()
+  const { chats, selectedChat, selectChat, getChatName, getChatAvatar, getOtherParticipant, markAllAsRead, exportChat } = useChat()
   const { isConnected } = useSocket()
   const { getIncomingRequests } = useFriend()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState<"chats" | "users" | "requests">("chats")
   const [showGroupModal, setShowGroupModal] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+
+  // Calculate total unread
+  const totalUnreadCount = chats.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0)
 
   // Get incoming requests count for badge
   const incomingRequestsCount = getIncomingRequests().length
@@ -129,6 +134,19 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
           />
         </div>
       </div>
+
+      {/* Quick Actions */}
+      {totalUnreadCount > 0 && (
+        <div className="px-4 mb-2">
+          <button
+            onClick={() => markAllAsRead()}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium text-[var(--color-primary)] bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20 rounded-lg transition-colors"
+          >
+            <CheckCheck className="w-3.5 h-3.5" />
+            Mark all as read ({totalUnreadCount})
+          </button>
+        </div>
+      )}
 
       {/* Tabs with modern transition */}
       <div className="flex border-b border-[var(--color-border)] gap-0 px-2 bg-[var(--color-secondary)]/10 mx-4 rounded-xl mb-2">
@@ -269,6 +287,33 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
 
       {/* Group Creation Modal */}
       <GroupCreationModal isOpen={showGroupModal} onClose={() => setShowGroupModal(false)} />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
+
+      {/* Footer */}
+      <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-secondary)]/20">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowShortcuts(true)}
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-secondary)] rounded-lg transition-colors"
+            title="Keyboard shortcuts (Ctrl+?)"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Shortcuts</span>
+          </button>
+          {selectedChat && (
+            <button
+              onClick={() => exportChat(selectedChat.id)}
+              className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-lg transition-colors"
+              title="Export this chat"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
